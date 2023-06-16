@@ -7,7 +7,7 @@ import {
   Param,
   Delete,
   Query,
-  Res,
+  // Res,
 } from '@nestjs/common';
 import { WuzzufService } from './wuzzuf.service';
 import { ScrapyWuzzufDto } from './dto/scrapy-wuzzuf.dto';
@@ -25,18 +25,22 @@ export class WuzzufController {
   //TODO: error in response f post request because run scrapeURLs >> browser close >> return the response >> run scrape details
   @Post()
   async scrapy(@Body() body: ScrapyWuzzufDto) {
-    // const url =
-    //   'https://wuzzuf.net/search/jobs/?a=navbl&filters%5Bpost_date%5D%5B0%5D=within_24_hours&q=backend';
-    // const viewBrowser = true;
     const { url, viewBrowser } = body;
     console.log(`url: ${url}, view: ${viewBrowser}`);
     const response = {
       status: 'in progress',
       data: [],
     };
-    await this.wuzzufService.runScrapping(url, viewBrowser);
-    response.status = 'complete';
-    response.data = this.wuzzufService.getJobs();
+
+    try {
+      await this.wuzzufService.runScrapping(url, viewBrowser);
+      response.status = 'complete';
+      response.data = this.wuzzufService.getJobs();
+    } catch (error) {
+      response.status = 'error';
+      response.data = [];
+      console.error('Error occurred during scraping:', error);
+    }
     return response;
   }
 

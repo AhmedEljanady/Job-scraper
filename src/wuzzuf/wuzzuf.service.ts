@@ -112,32 +112,37 @@ export class WuzzufService {
   };
 
   runClusters = async (viewBrowser: boolean) => {
-    const cluster = await Cluster.launch({
-      concurrency: Cluster.CONCURRENCY_PAGE,
-      maxConcurrency: 10,
-      // monitor: true,
-      puppeteerOptions: {
-        headless: viewBrowser,
-        // defaultViewport: false,
-        userDataDir: './tmp',
-        timeout: 60000,
-      },
-    });
+    try {
+      const cluster = await Cluster.launch({
+        concurrency: Cluster.CONCURRENCY_PAGE,
+        maxConcurrency: 10,
+        // monitor: true,
+        puppeteerOptions: {
+          headless: viewBrowser,
+          // defaultViewport: false,
+          userDataDir: './tmp',
+          timeout: 60000,
+        },
+      });
 
-    cluster.on('taskerror', (err, data) => {
-      console.log(`err ${data}: ${err.message}`);
-    });
+      cluster.on('taskerror', (err, data) => {
+        console.log(`err ${data}: ${err.message}`);
+      });
 
-    await cluster.task(async ({ page, data: url }) => {
-      const jobDetails = await this.scrapeJobDetails(page, url);
-      this.jobs.push(jobDetails);
-      console.log(this.jobs);
-    });
-    for (const url of this.urls) {
-      cluster.queue(url);
+      await cluster.task(async ({ page, data: url }) => {
+        const jobDetails = await this.scrapeJobDetails(page, url);
+        this.jobs.push(jobDetails);
+        console.log(this.jobs);
+      });
+      for (const url of this.urls) {
+        cluster.queue(url);
+      }
+      await cluster.idle();
+      await cluster.close();
+    } catch (error) {
+      console.error('Error occurred during cluster execution:', error);
+      throw error; // Rethrow the error to be caught in the calling function
     }
-    await cluster.idle();
-    await cluster.close();
   };
 
   runScrapping = async (url: string, viewBrowser: boolean) => {
@@ -153,7 +158,7 @@ export class WuzzufService {
       await page.goto(url, { waitUntil: 'domcontentloaded' });
       await this.scrapeJobLinks(page);
       console.log(this.urls.length);
-      this.runClusters(viewBrowser);
+      await this.runClusters(viewBrowser);
       await browser.close();
     } catch (error) {
       console.error('Error occurred during scraping:', error);
