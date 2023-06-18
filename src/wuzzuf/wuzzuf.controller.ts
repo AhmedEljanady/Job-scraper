@@ -27,20 +27,21 @@ export class WuzzufController {
   async scrapy(@Body() body: ScrapyWuzzufDto) {
     const { url, viewBrowser } = body;
     console.log(`url: ${url}, view: ${viewBrowser}`);
-    const response = {
-      status: 'in progress',
-      data: [],
-    };
-
+    // viewBrowser = 'new';
+    let response;
+    console.log(1);
     try {
-      await this.wuzzufService.runScrapping(url, viewBrowser);
-      response.status = 'complete';
-      response.data = this.wuzzufService.getJobs();
+      response = await this.wuzzufService.runScrapping(url, viewBrowser);
+      // response.status = 'complete';
+      // response.data = this.wuzzufService.getJobs();
+      console.log(2);
     } catch (error) {
       response.status = 'error';
       response.data = [];
       console.error('Error occurred during scraping:', error);
+      console.log(3);
     }
+    console.log({ ...response });
     return response;
   }
 

@@ -1,0 +1,9 @@
+> Test cases:
+    if wrong url
+    if not wuzzuf jobs url
+    if no jobs in the url
+
+
+> save link in local storage
+> solve show browser error
+> add Indeed and WWE

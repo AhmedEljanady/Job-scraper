@@ -4,6 +4,7 @@ import { UpdateWuzzufDto } from './dto/update-wuzzuf.dto';
 import { Cluster } from 'puppeteer-cluster';
 // import puppeteer, { Puppeteer } from 'puppeteer';
 import * as puppeteer from 'puppeteer';
+import * as shortid from 'shortid';
 
 @Injectable()
 export class WuzzufService {
@@ -18,7 +19,12 @@ export class WuzzufService {
   scrapeJobLinks = async (page: puppeteer.Page) => {
     while (true) {
       await this.sleep(3000);
-      await page.waitForSelector('.css-1gatmva');
+      try {
+        await page.waitForSelector('.css-1gatmva');
+      } catch (err) {
+        console.error(err);
+        return 'NO JOBS HERE!!';
+      }
       const allJobs = await page.$$('.css-1gatmva');
 
       for (const job of allJobs) {
@@ -30,6 +36,10 @@ export class WuzzufService {
           );
           link = 'https://wuzzuf.net' + link;
         } catch (err) {}
+
+        if (this.urls.includes(link)) {
+          continue;
+        }
 
         this.urls.push(link);
         // console.log('url length: ' + this.urls.length);
@@ -54,6 +64,7 @@ export class WuzzufService {
     await page.goto(url);
     await page.waitForSelector('.css-1t5f0fr', { timeout: 5000 });
 
+    const id = shortid.generate();
     let title: string | undefined = '';
     // company: string | undefined,
     // companyLogo: string | undefined,
@@ -61,7 +72,6 @@ export class WuzzufService {
     // experience: string | undefined,
     // postedDate: string | undefined,
     // jobRequirements: string | undefined = '';
-
     const jobTitleElement = await page.$('.css-f9uh36');
     if (jobTitleElement) {
       title = await jobTitleElement.evaluate((element) => element.textContent);
@@ -99,6 +109,7 @@ export class WuzzufService {
     );
 
     return {
+      id,
       title,
       jobTypes,
       company,
@@ -115,13 +126,13 @@ export class WuzzufService {
     try {
       const cluster = await Cluster.launch({
         concurrency: Cluster.CONCURRENCY_PAGE,
-        maxConcurrency: 10,
+        maxConcurrency: 5,
         // monitor: true,
         puppeteerOptions: {
           headless: viewBrowser,
           // defaultViewport: false,
           userDataDir: './tmp',
-          timeout: 60000,
+          timeout: 0,
         },
       });
 
@@ -130,6 +141,7 @@ export class WuzzufService {
       });
 
       await cluster.task(async ({ page, data: url }) => {
+        page.setDefaultNavigationTimeout(0);
         const jobDetails = await this.scrapeJobDetails(page, url);
         this.jobs.push(jobDetails);
         console.log(this.jobs);
@@ -148,26 +160,43 @@ export class WuzzufService {
   runScrapping = async (url: string, viewBrowser: boolean) => {
     try {
       if (typeof url !== 'string') {
-        throw new Error('URL must be a string');
+        return { status: 'error', error: 'URL must be a string' };
+      } else if (!url.startsWith('https://wuzzuf.net/search/jobs')) {
+        return { status: 'error', error: 'URL must be from Wuzzuf job search' };
       }
       const browser = await puppeteer.launch({
         headless: viewBrowser,
         userDataDir: './tmp',
       });
       const page = await browser.newPage();
+      page.setDefaultNavigationTimeout(0);
       await page.goto(url, { waitUntil: 'domcontentloaded' });
       await this.scrapeJobLinks(page);
+      if (this.urls.length === 0) {
+        return { status: 'error', error: 'NO JOBS HERE!!!' };
+        // throw new Error('NO JOBS HERE!!!');
+      }
       console.log(this.urls.length);
+      if (this.urls.length > 10) {
+        this.urls = this.urls.slice(0, 10);
+      }
+      console.log(this.urls.length);
+
       await this.runClusters(viewBrowser);
       await browser.close();
+      return { status: 'complete', data: this.jobs };
     } catch (error) {
       console.error('Error occurred during scraping:', error);
+      return { status: 'error', error: error.message };
     }
   };
 
   getJobs() {
     return this.jobs;
   }
+
+  /***************************************************/
+
   create(createWuzzufDto: CreateWuzzufDto) {
     return 'This action adds a new job in wuzzuf';
   }

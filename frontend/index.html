@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Job Scraper</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Job Scraper</h1>
+      <form id="scrapeForm">
+        <div class="form-group">
+          <label for="url">Wuzzuf URL:</label>
+          <input
+            type="text"
+            class="form-control"
+            id="url"
+            name="url"
+            required
+          />
+        </div>
+        <div class="form-check">
+          <input
+            type="checkbox"
+            class="form-check-input"
+            id="viewBrowser"
+            name="viewBrowser"
+          />
+          <label class="form-check-label" for="viewBrowser">View Browser</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Scrape Jobs</button>
+      </form>
+
+      <div id="accordion">
+        <!-- Job Accordions will be dynamically added here -->
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      function navigateToJob(url) {
+        window.open(url, '_blank'); // Open the job URL in a new tab
+      }
+      $(document).ready(function () {
+        $('#scrapeForm').submit(function (e) {
+          e.preventDefault();
+          const form = $(this);
+          const url = form.find('#url').val();
+          const viewBrowser = form.find('#viewBrowser').prop('checked');
+
+          $.post('http://localhost:3000/wuzzuf', {
+            url: url,
+            viewBrowser: viewBrowser,
+          })
+            .done(function (response) {
+              if (response.status === 'complete') {
+                const jobs = response.data;
+
+                const accordion = $('#accordion');
+                accordion.empty();
+
+                jobs.forEach(function (job) {
+                  const accordionItem = $('<div class="accordion-item">');
+                  const accordionHeader = $(
+                    `<h2 class="accordion-header d-flex" id="heading${job.id}">`,
+                  );
+
+                  const accordionButton = $(
+                    `<button class="accordion-button" type="button" aria-expanded="false" aria-controls="collapse${job.id}">`,
+                  ).text(job.title);
+
+                  const openButton = $(
+                    `<button class="btn btn-primary ms-auto">`,
+                  )
+                    .text('Open')
+                    .click(function () {
+                      navigateToJob(job.url);
+                    });
+                  const accordionCollapse = $(
+                    `<div id="collapse${job.id}" class="accordion-collapse collapse" aria-labelledby="heading${job.id}">`,
+                  );
+
+                  const accordionBody = $('<div class="accordion-body">');
+
+                  accordionHeader.append(accordionButton, openButton);
+                  accordionBody.append(
+                    $('<p>').text('Company: ' + job.company),
+                    $('<p>').html(
+                      'Company Logo: <img src="' +
+                        job.companyLogo +
+                        '" alt="Company Logo">',
+                    ),
+                    $('<p>').text('Experience: ' + job.experience),
+                    $('<p>').text('Location: ' + job.location),
+                    $('<p>').text('Posted Date: ' + job.postedDate),
+                    $('<p>').text('Job Requirements:'),
+                    $('<p>').html(job.jobRequirements),
+                  );
+
+                  accordionCollapse.append(accordionBody);
+                  accordionItem.append(accordionHeader, accordionCollapse);
+                  accordion.append(accordionItem);
+
+                  // Accordion toggle functionality
+                  accordionHeader.on('click', function () {
+                    $(this).toggleClass('accordion-header--active');
+                    accordionCollapse.slideToggle();
+                  });
+                });
+              } else if (response.status === 'error') {
+                alert('Error occurred during scraping: ' + response.error);
+              }
+            })
+            .fail(function () {
+              alert('An error occurred while making the request.');
+            });
+        });
+      });
+    </script>
+  </body>
+</html>
