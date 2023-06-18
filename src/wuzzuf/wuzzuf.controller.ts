@@ -29,17 +29,14 @@ export class WuzzufController {
     console.log(`url: ${url}, view: ${viewBrowser}`);
     // viewBrowser = 'new';
     let response;
-    console.log(1);
     try {
       response = await this.wuzzufService.runScrapping(url, viewBrowser);
       // response.status = 'complete';
       // response.data = this.wuzzufService.getJobs();
-      console.log(2);
     } catch (error) {
       response.status = 'error';
       response.data = [];
       console.error('Error occurred during scraping:', error);
-      console.log(3);
     }
     console.log({ ...response });
     return response;

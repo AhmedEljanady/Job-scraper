@@ -143,12 +143,17 @@ export class WuzzufService {
       await cluster.task(async ({ page, data: url }) => {
         page.setDefaultNavigationTimeout(0);
         const jobDetails = await this.scrapeJobDetails(page, url);
-        this.jobs.push(jobDetails);
-        console.log(this.jobs);
+        if (this.urls.length > this.jobs.length) {
+          this.jobs.push(jobDetails);
+        }
+        // console.log('num of jobs: ' + this.jobs.length);
       });
-      for (const url of this.urls) {
-        cluster.queue(url);
+
+      for (let i = 0; i < this.urls.length; i++) {
+        // console.log(i, this.urls[i]);
+        cluster.queue(this.urls[i]);
       }
+
       await cluster.idle();
       await cluster.close();
     } catch (error) {

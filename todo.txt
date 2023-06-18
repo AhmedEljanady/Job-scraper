@@ -1,7 +1,7 @@
 > Test cases:
-    if wrong url
-    if not wuzzuf jobs url
-    if no jobs in the url
+    if wrong url    Done
+    if not wuzzuf jobs url  Done
+    if no jobs in the url   Done
 
 
 > save link in local storage

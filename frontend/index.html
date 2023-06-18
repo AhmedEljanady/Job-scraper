@@ -45,12 +45,25 @@
       function navigateToJob(url) {
         window.open(url, '_blank'); // Open the job URL in a new tab
       }
+
       $(document).ready(function () {
+        // Retrieve values from local storage
+        const storedUrl = localStorage.getItem('scrapeUrl');
+        const storedViewBrowser = localStorage.getItem('viewBrowser');
+
+        // Set form values from local storage
+        $('#url').val(storedUrl);
+        $('#viewBrowser').prop('checked', storedViewBrowser === 'true');
+
         $('#scrapeForm').submit(function (e) {
           e.preventDefault();
           const form = $(this);
           const url = form.find('#url').val();
           const viewBrowser = form.find('#viewBrowser').prop('checked');
+
+          // Save values to local storage
+          localStorage.setItem('scrapeUrl', url);
+          localStorage.setItem('viewBrowser', viewBrowser);
 
           $.post('http://localhost:3000/wuzzuf', {
             url: url,
@@ -86,6 +99,12 @@
 
                   const accordionBody = $('<div class="accordion-body">');
 
+                  const jobTypesList = $('<ul>');
+                  job.jobTypes.forEach(function (type) {
+                    const listItem = $('<li>').text(type);
+                    jobTypesList.append(listItem);
+                  });
+
                   accordionHeader.append(accordionButton, openButton);
                   accordionBody.append(
                     $('<p>').text('Company: ' + job.company),
@@ -95,6 +114,7 @@
                         '" alt="Company Logo">',
                     ),
                     $('<p>').text('Experience: ' + job.experience),
+                    $('<p>').text('Job Types:').append(jobTypesList),
                     $('<p>').text('Location: ' + job.location),
                     $('<p>').text('Posted Date: ' + job.postedDate),
                     $('<p>').text('Job Requirements:'),
