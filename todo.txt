@@ -4,6 +4,6 @@
     if no jobs in the url   Done
 
 
-> save link in local storage
+> save link in local storage    Done
 > solve show browser error
 > add Indeed and WWE

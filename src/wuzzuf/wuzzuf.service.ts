@@ -179,7 +179,6 @@ export class WuzzufService {
       await this.scrapeJobLinks(page);
       if (this.urls.length === 0) {
         return { status: 'error', error: 'NO JOBS HERE!!!' };
-        // throw new Error('NO JOBS HERE!!!');
       }
       console.log(this.urls.length);
       if (this.urls.length > 10) {
@@ -189,6 +188,7 @@ export class WuzzufService {
 
       await this.runClusters(viewBrowser);
       await browser.close();
+
       return { status: 'complete', data: this.jobs };
     } catch (error) {
       console.error('Error occurred during scraping:', error);

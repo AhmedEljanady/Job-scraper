@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { WuzzufModule } from './wuzzuf/wuzzuf.module';
+import { WweModule } from './wwe/wwe.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { WuzzufModule } from './wuzzuf/wuzzuf.module';
     //   synchronize: true,
     // }),
     WuzzufModule,
+    WweModule,
   ],
   controllers: [AppController],
   providers: [AppService],

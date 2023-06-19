@@ -17,12 +17,6 @@ import { UpdateWuzzufDto } from './dto/update-wuzzuf.dto';
 export class WuzzufController {
   constructor(private readonly wuzzufService: WuzzufService) {}
 
-  // @Post()
-  // create(@Body() createWuzzufDto: CreateWuzzufDto) {
-  //   return this.wuzzufService.create(createWuzzufDto);
-  // }
-
-  //TODO: error in response f post request because run scrapeURLs >> browser close >> return the response >> run scrape details
   @Post()
   async scrapy(@Body() body: ScrapyWuzzufDto) {
     const { url, viewBrowser } = body;
@@ -31,8 +25,6 @@ export class WuzzufController {
     let response;
     try {
       response = await this.wuzzufService.runScrapping(url, viewBrowser);
-      // response.status = 'complete';
-      // response.data = this.wuzzufService.getJobs();
     } catch (error) {
       response.status = 'error';
       response.data = [];
