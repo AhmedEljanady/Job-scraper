@@ -35,39 +35,89 @@
         <button type="submit" class="btn btn-primary">Scrape Jobs</button>
       </form>
 
+      <div id="progressContainer">
+        <h3>Progress Updates:</h3>
+        <ul id="progressList"></ul>
+      </div>
+
       <div id="accordion">
         <!-- Job Accordions will be dynamically added here -->
       </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.1/socket.io.js"></script>
+    <!-- <script src="../dist/wuzzuf/wuzzuf.getway.js"></script> -->
+    <script src="/socket.io/socket.io.js"></script>
     <script>
+      const socket = io();
       function navigateToJob(url) {
-        window.open(url, '_blank'); // Open the job URL in a new tab
+        window.open(url, '_blank');
       }
 
       $(document).ready(function () {
-        // Retrieve values from local storage
+        const socket = io('http://localhost:3000');
+        let userId;
+
+        socket.on('connected', (data) => {
+          userId = data.userId;
+          console.log(`user ${data.userId} connected`);
+        });
+
+        function handleProgressUpdate(progress) {
+          const progressList = $('#progressList');
+          const message = $('<li>');
+          progressList.append(message);
+
+          // Split the progress message into individual letters
+          const letters = progress.split('');
+
+          // Use a recursive function to append each letter with a delay
+          function appendLetter(index) {
+            if (index < letters.length) {
+              // Append the next letter
+              message.append(letters[index]);
+
+              // Call the recursive function after a delay of 0.5 seconds
+              setTimeout(() => {
+                appendLetter(index + 1);
+              }, 25);
+            }
+          }
+
+          // Start appending letters from the first index
+          appendLetter(0);
+        }
+
+        socket.on('progress', function (data) {
+          // console.log('data' + data);
+          const { userId, progress } = data;
+          // console.log(userId, progress);
+          // if (updateUserId === userId) {
+          handleProgressUpdate(data);
+          // }
+        });
+
         const storedUrl = localStorage.getItem('scrapeUrl');
         const storedViewBrowser = localStorage.getItem('viewBrowser');
 
-        // Set form values from local storage
         $('#url').val(storedUrl);
         $('#viewBrowser').prop('checked', storedViewBrowser === 'true');
 
         $('#scrapeForm').submit(function (e) {
           e.preventDefault();
+          socket.emit('startScraping');
           const form = $(this);
           const url = form.find('#url').val();
           const viewBrowser = form.find('#viewBrowser').prop('checked');
 
-          // Save values to local storage
           localStorage.setItem('scrapeUrl', url);
           localStorage.setItem('viewBrowser', viewBrowser);
 
           $.post('http://localhost:3000/wuzzuf', {
-            url: url,
-            viewBrowser: viewBrowser,
+            userId,
+            url,
+            viewBrowser,
           })
             .done(function (response) {
               if (response.status === 'complete') {
@@ -93,6 +143,7 @@
                     .click(function () {
                       navigateToJob(job.url);
                     });
+
                   const accordionCollapse = $(
                     `<div id="collapse${job.id}" class="accordion-collapse collapse" aria-labelledby="heading${job.id}">`,
                   );
@@ -125,7 +176,6 @@
                   accordionItem.append(accordionHeader, accordionCollapse);
                   accordion.append(accordionItem);
 
-                  // Accordion toggle functionality
                   accordionHeader.on('click', function () {
                     $(this).toggleClass('accordion-header--active');
                     accordionCollapse.slideToggle();

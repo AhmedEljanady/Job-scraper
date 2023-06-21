@@ -2,13 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { CreateWuzzufDto } from './dto/create-wuzzuf.dto';
 import { UpdateWuzzufDto } from './dto/update-wuzzuf.dto';
 import { Cluster } from 'puppeteer-cluster';
-// import puppeteer, { Puppeteer } from 'puppeteer';
 import * as puppeteer from 'puppeteer';
 import * as shortid from 'shortid';
+import { SocketGateway } from 'src/socket.getway';
 
 @Injectable()
 export class WuzzufService {
-  //   {
+  constructor(private readonly socketGetway: SocketGateway) {}
+
   sleep = (milliseconds: number) => {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
   };
@@ -16,7 +17,8 @@ export class WuzzufService {
   urls: string[] = [];
   jobs = [];
 
-  scrapeJobLinks = async (page: puppeteer.Page) => {
+  scrapeJobLinks = async (userId: string, page: puppeteer.Page) => {
+    this.socketGetway.sendProgressUpdates(userId, `Fetching job links...`);
     while (true) {
       await this.sleep(3000);
       try {
@@ -60,18 +62,18 @@ export class WuzzufService {
     }
   };
 
-  scrapeJobDetails = async (page: puppeteer.Page, url: string) => {
+  scrapeJobDetails = async (
+    userId: string,
+    page: puppeteer.Page,
+    url: string,
+  ) => {
+    this.socketGetway.sendProgressUpdates(userId, `Scraping job details...`);
     await page.goto(url);
     await page.waitForSelector('.css-1t5f0fr', { timeout: 5000 });
 
     const id = shortid.generate();
     let title: string | undefined = '';
-    // company: string | undefined,
-    // companyLogo: string | undefined,
-    // location: string | undefined,
-    // experience: string | undefined,
-    // postedDate: string | undefined,
-    // jobRequirements: string | undefined = '';
+
     const jobTitleElement = await page.$('.css-f9uh36');
     if (jobTitleElement) {
       title = await jobTitleElement.evaluate((element) => element.textContent);
@@ -122,8 +124,9 @@ export class WuzzufService {
     };
   };
 
-  runClusters = async (viewBrowser: boolean) => {
+  runClusters = async (userId: string, viewBrowser: boolean) => {
     try {
+      this.socketGetway.sendProgressUpdates(userId, `Running the clusters...`);
       const cluster = await Cluster.launch({
         concurrency: Cluster.CONCURRENCY_PAGE,
         maxConcurrency: 5,
@@ -142,9 +145,13 @@ export class WuzzufService {
 
       await cluster.task(async ({ page, data: url }) => {
         page.setDefaultNavigationTimeout(0);
-        const jobDetails = await this.scrapeJobDetails(page, url);
+        const jobDetails = await this.scrapeJobDetails(userId, page, url);
         if (this.urls.length > this.jobs.length) {
           this.jobs.push(jobDetails);
+          this.socketGetway.sendProgressUpdates(
+            userId,
+            `New job added... ${this.jobs.length} from ${this.urls.length}`,
+          );
         }
         // console.log('num of jobs: ' + this.jobs.length);
       });
@@ -162,7 +169,7 @@ export class WuzzufService {
     }
   };
 
-  runScrapping = async (url: string, viewBrowser: boolean) => {
+  runScrapping = async (userId: string, url: string, viewBrowser: boolean) => {
     try {
       if (typeof url !== 'string') {
         return { status: 'error', error: 'URL must be a string' };
@@ -174,9 +181,13 @@ export class WuzzufService {
         userDataDir: './tmp',
       });
       const page = await browser.newPage();
+      this.socketGetway.sendProgressUpdates(
+        userId,
+        `Browser launched successfully...`,
+      );
       page.setDefaultNavigationTimeout(0);
       await page.goto(url, { waitUntil: 'domcontentloaded' });
-      await this.scrapeJobLinks(page);
+      await this.scrapeJobLinks(userId, page);
       if (this.urls.length === 0) {
         return { status: 'error', error: 'NO JOBS HERE!!!' };
       }
@@ -186,9 +197,12 @@ export class WuzzufService {
       }
       console.log(this.urls.length);
 
-      await this.runClusters(viewBrowser);
+      await this.runClusters(userId, viewBrowser);
       await browser.close();
-
+      this.socketGetway.sendProgressUpdates(
+        userId,
+        `Finish scrapping and browser closed...`,
+      );
       return { status: 'complete', data: this.jobs };
     } catch (error) {
       console.error('Error occurred during scraping:', error);

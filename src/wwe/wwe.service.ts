@@ -44,7 +44,7 @@ export class WweService {
     console.log(this.urls);
   };
 
-  scrapeJobDetails = async (page, url) => {
+  scrapeJobDetails = async (page, url: string) => {
     console.log(`scrapping Job Details... `);
     await page.goto(url);
     await page.waitForSelector('.listing-header-container', { timeout: 5000 });
