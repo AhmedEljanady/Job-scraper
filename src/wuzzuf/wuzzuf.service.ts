@@ -124,15 +124,15 @@ export class WuzzufService {
     };
   };
 
-  runClusters = async (userId: string, viewBrowser: boolean) => {
+  runClusters = async (userId: string, maxConcurrency: number) => {
     try {
       this.socketGetway.sendProgressUpdates(userId, `Running the clusters...`);
       const cluster = await Cluster.launch({
         concurrency: Cluster.CONCURRENCY_PAGE,
-        maxConcurrency: 5,
+        maxConcurrency,
         // monitor: true,
         puppeteerOptions: {
-          headless: viewBrowser,
+          headless: true,
           // defaultViewport: false,
           userDataDir: './tmp',
           timeout: 0,
@@ -169,7 +169,11 @@ export class WuzzufService {
     }
   };
 
-  runScrapping = async (userId: string, url: string, viewBrowser: boolean) => {
+  runScrapping = async (
+    userId: string,
+    url: string,
+    maxConcurrency: number,
+  ) => {
     try {
       if (typeof url !== 'string') {
         return { status: 'error', error: 'URL must be a string' };
@@ -177,7 +181,7 @@ export class WuzzufService {
         return { status: 'error', error: 'URL must be from Wuzzuf job search' };
       }
       const browser = await puppeteer.launch({
-        headless: viewBrowser,
+        headless: true,
         userDataDir: './tmp',
       });
       const page = await browser.newPage();
@@ -197,7 +201,7 @@ export class WuzzufService {
       }
       console.log(this.urls.length);
 
-      await this.runClusters(userId, viewBrowser);
+      await this.runClusters(userId, maxConcurrency);
       await browser.close();
       this.socketGetway.sendProgressUpdates(
         userId,

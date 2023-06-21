@@ -1,9 +1,8 @@
-> Test cases:
-    if wrong url    Done
-    if not wuzzuf jobs url  Done
-    if no jobs in the url   Done
 
+> add Linkedin
 
-> save link in local storage    Done
-> solve show browser error
-> add Indeed and WWE
+if (companyLogo) print it
+add userId and socket.io to WWE
+create the home page
+
+display progress updates in console like screen

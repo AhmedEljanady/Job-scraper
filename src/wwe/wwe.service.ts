@@ -171,10 +171,9 @@ export class WweService {
       }
       console.log(this.urls.length);
 
-      await this.runClusters(maxConcurrency);
+      await this.runClusters(+maxConcurrency);
 
       await browser.close();
-
       return { status: 'complete', data: this.jobs };
     } catch (error) {
       console.error('Error occurred during scraping:', error);

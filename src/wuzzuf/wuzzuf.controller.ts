@@ -22,13 +22,15 @@ export class WuzzufController {
   @Post()
   @SubscribeMessage('startScraping')
   async scrapy(@Body() body: ScrapyWuzzufDto) {
-    const { userId, url, viewBrowser } = body;
-    console.log(`url: ${url}, view: ${viewBrowser} for user: ${userId}`);
+    const { userId, url, maxConcurrency } = body;
+    console.log(
+      `url: ${url}, maxConcurrency: ${maxConcurrency} for user: ${userId}`,
+    );
     try {
       const response = await this.wuzzufService.runScrapping(
         userId,
         url,
-        viewBrowser,
+        +maxConcurrency,
       );
 
       // this.wuzzufService.sendProgressUpdates(`scraping completed...`);

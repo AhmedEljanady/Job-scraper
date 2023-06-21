@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Job Scraper</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css"
+    />
+    <style>
+      #maxConcurrency {
+        width: 100px;
+        margin-left: 20px;
+      }
+
+      #console {
+        background-color: black;
+        color: white;
+        width: 100%;
+        height: 300px;
+        overflow: auto;
+      }
+
+      #console-output {
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Job Scraper</h1>
+      <form id="scrapeForm">
+        <div class="form-group">
+          <label for="url">Wuzzuf URL:</label>
+          <input
+            type="text"
+            class="form-control"
+            id="url"
+            name="url"
+            required
+          />
+        </div>
+        <div class="form-check d-flex my-4">
+          <label class="form-check-label" for="maxConcurrency"
+            >maxConcurrency</label
+          >
+          <input
+            type="number"
+            class="form-control"
+            id="maxConcurrency"
+            name="maxConcurrency"
+          />
+        </div>
+        <button type="submit" class="btn btn-primary my-4">Scrape Jobs</button>
+      </form>
+
+      <div id="console">
+        <pre id="console-output"></pre>
+      </div>
+
+      <!-- <div id="progressContainer">
+        <h3>Progress Updates:</h3>
+        <ul id="progressList"></ul>
+      </div> -->
+      <hr />
+      <div id="accordion" class="my-4">
+        <!-- Job Accordions will be dynamically added here -->
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.1/socket.io.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      function navigateToJob(url) {
+        window.open(url, '_blank');
+      }
+
+      $(document).ready(function () {
+        const socket = io('http://localhost:3000');
+        let userId;
+
+        socket.on('connected', (data) => {
+          userId = data.userId;
+          console.log(`user ${userId} connected`);
+        });
+
+        //console like screen
+        function handleProgressUpdate(progress) {
+          const consoleOutput = document.getElementById('console-output');
+          const message = document.createElement('div');
+          consoleOutput.appendChild(message);
+
+          // Split the progress message into individual letters
+          const letters = progress.split('');
+
+          // Use a recursive function to append each letter with a delay
+          function appendLetter(index) {
+            if (index < letters.length) {
+              // Append the next letter
+              message.innerText += letters[index];
+
+              // Call the recursive function after a delay of 0.5 seconds (adjust as needed)
+              setTimeout(() => {
+                appendLetter(index + 1);
+              }, 10);
+            }
+          }
+
+          // Start appending letters from the first index
+          appendLetter(0);
+
+          // Scroll to the bottom of the console
+          consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        // normal list shape
+        // function handleProgressUpdate(progress) {
+        //   const progressList = $('#progressList');
+        //   const message = $('<li>');
+        //   progressList.append(message);
+
+        //   const letters = progress.split('');
+
+        //   function appendLetter(index) {
+        //     if (index < letters.length) {
+        //       message.append(letters[index]);
+        //       setTimeout(() => {
+        //         appendLetter(index + 1);
+        //       }, 25);
+        //     }
+        //   }
+        //   appendLetter(0);
+        // }
+
+        socket.on('progress', function (data) {
+          // console.log('data' + data);
+          const { userId, progress } = data;
+          // console.log(userId, progress);
+          // if (updateUserId === userId) {
+          handleProgressUpdate(data);
+          // }
+        });
+
+        const storedUrl = localStorage.getItem('scrapeUrl');
+        const storedmaxConcurrency = localStorage.getItem('maxConcurrency');
+
+        $('#url').val(storedUrl);
+        $('#maxConcurrency').val(storedmaxConcurrency);
+
+        $('#scrapeForm').submit(function (e) {
+          e.preventDefault();
+          socket.emit('startScraping');
+          const form = $(this);
+          const url = form.find('#url').val();
+          const maxConcurrency = form.find('#maxConcurrency').val();
+          console.log(maxConcurrency);
+          localStorage.setItem('scrapeUrl', url);
+          localStorage.setItem('maxConcurrency', maxConcurrency);
+
+          $.post('http://localhost:3000/wuzzuf', {
+            userId,
+            url,
+            maxConcurrency,
+          })
+            .done(function (response) {
+              if (response.status === 'complete') {
+                const jobs = response.data;
+
+                const accordion = $('#accordion');
+                accordion.empty();
+
+                jobs.forEach(function (job) {
+                  const accordionItem = $('<div class="accordion-item">');
+                  const accordionHeader = $(
+                    `<h2 class="accordion-header d-flex" id="heading${job.id}">`,
+                  );
+
+                  const accordionButton = $(
+                    `<button class="accordion-button" type="button" aria-expanded="false" aria-controls="collapse${job.id}">`,
+                  ).text(job.title);
+
+                  const openButton = $(
+                    `<button class="btn btn-primary ms-auto">`,
+                  )
+                    .text('Open')
+                    .click(function () {
+                      navigateToJob(job.url);
+                    });
+
+                  const accordionCollapse = $(
+                    `<div id="collapse${job.id}" class="accordion-collapse collapse" aria-labelledby="heading${job.id}">`,
+                  );
+
+                  const accordionBody = $('<div class="accordion-body">');
+
+                  const jobTypesList = $('<ul>');
+                  job.jobTypes.forEach(function (type) {
+                    const listItem = $('<li>').text(type);
+                    jobTypesList.append(listItem);
+                  });
+
+                  accordionHeader.append(accordionButton, openButton);
+                  accordionBody.append(
+                    $('<p>').text('Company: ' + job.company),
+                    $('<p>').html(
+                      'Company Logo: <img src="' +
+                        job.companyLogo +
+                        '" alt="Company Logo">',
+                    ),
+                    $('<p>').text('Experience: ' + job.experience),
+                    $('<p>').text('Job Types:').append(jobTypesList),
+                    $('<p>').text('Location: ' + job.location),
+                    $('<p>').text('Posted Date: ' + job.postedDate),
+                    $('<p>').text('Job Requirements:'),
+                    $('<p>').html(job.jobRequirements),
+                  );
+
+                  accordionCollapse.append(accordionBody);
+                  accordionItem.append(accordionHeader, accordionCollapse);
+                  accordion.append(accordionItem);
+
+                  accordionHeader.on('click', function () {
+                    $(this).toggleClass('accordion-header--active');
+                    accordionCollapse.slideToggle();
+                  });
+                });
+              } else if (response.status === 'error') {
+                alert('Error occurred during scraping: ' + response.error);
+              }
+            })
+            .fail(function () {
+              alert('An error occurred while making the request.');
+            });
+        });
+      });
+    </script>
+  </body>
+</html>
