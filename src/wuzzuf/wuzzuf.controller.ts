@@ -6,14 +6,14 @@ import {
   Patch,
   Param,
   Delete,
-  Query,
+  // Query,
   // Res,
 } from '@nestjs/common';
 import { WuzzufService } from './wuzzuf.service';
 import { ScrapyWuzzufDto } from './dto/scrapy-wuzzuf.dto';
 import { UpdateWuzzufDto } from './dto/update-wuzzuf.dto';
-import { ConnectedSocket, SubscribeMessage } from '@nestjs/websockets';
-import { Socket } from 'socket.io';
+import { SubscribeMessage } from '@nestjs/websockets';
+// import { Socket } from 'socket.io';
 
 @Controller('wuzzuf')
 export class WuzzufController {
@@ -26,8 +26,9 @@ export class WuzzufController {
     console.log(
       `url: ${url}, maxConcurrency: ${maxConcurrency} for user: ${userId}`,
     );
+    let response;
     try {
-      const response = await this.wuzzufService.runScrapping(
+      response = await this.wuzzufService.runScrapping(
         userId,
         url,
         +maxConcurrency,

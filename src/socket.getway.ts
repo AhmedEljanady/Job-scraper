@@ -1,10 +1,12 @@
-import {
-  SubscribeMessage,
-  WebSocketGateway,
-  WebSocketServer,
-} from '@nestjs/websockets';
+import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import * as shortid from 'shortid';
+
+/*TODO:
+here are two problems here:
+1- there are 4 different IDs generated every refresh
+2- this.activeUsers save only two of them   SOLVED
+*/
 
 @WebSocketGateway()
 export class SocketGateway {
@@ -12,16 +14,20 @@ export class SocketGateway {
   server: Server;
 
   private activeUsers: { [userId: string]: Socket } = {};
+  private static instance: SocketGateway; // this solve secound problem
 
-  // @SubscribeMessage('startScraping');
-  // handleStartScraping(client: Socket){
-
-  // }
+  constructor() {
+    return SocketGateway.instance || (SocketGateway.instance = this);
+  }
 
   handleConnection(client: Socket) {
     const userId = this.generateUserId();
-    this.activeUsers[userId] = client;
-    client.emit('connected', { userId });
+    if (!this.activeUsers[userId]) {
+      this.activeUsers[userId] = client;
+      client.emit('connected', { userId });
+    } else {
+      console.log(`User ${userId} already connected.`);
+    }
   }
 
   handleDisconnect(client: Socket) {
@@ -29,9 +35,19 @@ export class SocketGateway {
     delete this.activeUsers[userId];
   }
 
-  sendProgressUpdates(userId: string, progress: string): void {
-    const client = this.activeUsers[userId];
-    if (client) client.emit('progress', progress); //this.server or client
+  sendProgressUpdates(
+    userId: string,
+    progress: string,
+    isError = false,
+    isWarning = false,
+    isSuccess = false,
+  ): void {
+    if (userId in this.activeUsers) {
+      const client = this.activeUsers[userId];
+      client.emit('progress', { progress, isError, isWarning, isSuccess }); //this.server or client
+    } else {
+      console.log(`User ${userId} is not connected.`);
+    }
   }
 
   private generateUserId(): string {

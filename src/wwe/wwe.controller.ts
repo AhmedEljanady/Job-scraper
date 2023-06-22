@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
+import { SubscribeMessage } from '@nestjs/websockets';
 import { ScrapyWweDto } from './dto/scrapy-wwe.dto';
 import { WweService } from './wwe.service';
 
@@ -7,12 +8,19 @@ export class WweController {
   constructor(private readonly wweService: WweService) {}
 
   @Post()
+  @SubscribeMessage('startScraping')
   async scrapy(@Body() body: ScrapyWweDto) {
-    const { url, maxConcurrency } = body;
-    console.log(`url: ${url}, maxConcurrency: ${maxConcurrency}`);
+    const { userId, url, maxConcurrency } = body;
+    console.log(
+      `url: ${url}, maxConcurrency: ${maxConcurrency} for user: ${userId}`,
+    );
     let response;
     try {
-      response = await this.wweService.runScrapping(url, maxConcurrency);
+      response = await this.wweService.runScrapping(
+        userId,
+        url,
+        +maxConcurrency,
+      );
     } catch (error) {
       response.status = 'error';
       response.data = [];

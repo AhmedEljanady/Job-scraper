@@ -56,6 +56,10 @@ export class WuzzufService {
           nextButton.click({ delay: 100 }), // Optional delay to simulate human-like clicking
           page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }),
         ]);
+        this.socketGetway.sendProgressUpdates(
+          userId,
+          `Navigate to next page...`,
+        );
       } else {
         break;
       }
@@ -140,6 +144,11 @@ export class WuzzufService {
       });
 
       cluster.on('taskerror', (err, data) => {
+        this.socketGetway.sendProgressUpdates(
+          userId,
+          `Error during scraping details of job: ( ${data} ) you can check it manually`,
+          true,
+        );
         console.log(`err ${data}: ${err.message}`);
       });
 
@@ -147,17 +156,18 @@ export class WuzzufService {
         page.setDefaultNavigationTimeout(0);
         const jobDetails = await this.scrapeJobDetails(userId, page, url);
         if (this.urls.length > this.jobs.length) {
-          this.jobs.push(jobDetails);
           this.socketGetway.sendProgressUpdates(
             userId,
-            `New job added... ${this.jobs.length} from ${this.urls.length}`,
+            `New job added... ${this.jobs.length + 1} from ${this.urls.length}`,
+            false,
+            false,
+            true,
           );
+          this.jobs.push(jobDetails);
         }
-        // console.log('num of jobs: ' + this.jobs.length);
       });
 
       for (let i = 0; i < this.urls.length; i++) {
-        // console.log(i, this.urls[i]);
         cluster.queue(this.urls[i]);
       }
 
@@ -195,14 +205,37 @@ export class WuzzufService {
       if (this.urls.length === 0) {
         return { status: 'error', error: 'NO JOBS HERE!!!' };
       }
-      console.log(this.urls.length);
+
       if (this.urls.length > 10) {
+        this.socketGetway.sendProgressUpdates(
+          userId,
+          `there are ${this.urls.length} jobs but we will scraping first 10 only`,
+          false,
+          true,
+        );
         this.urls = this.urls.slice(0, 10);
+      } else {
+        this.socketGetway.sendProgressUpdates(
+          userId,
+          `there are ${this.urls.length} jobs to scrape`,
+          false,
+          false,
+          true,
+        );
       }
+
       console.log(this.urls.length);
 
       await this.runClusters(userId, maxConcurrency);
       await browser.close();
+      if (this.urls.length > this.jobs.length) {
+        this.socketGetway.sendProgressUpdates(
+          userId,
+          `if there are missed jobs try to decrease the maxConcurrency ...`,
+          false,
+          true,
+        );
+      }
       this.socketGetway.sendProgressUpdates(
         userId,
         `Finish scrapping and browser closed...`,

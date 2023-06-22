@@ -17,13 +17,15 @@
       #console {
         background-color: black;
         color: white;
-        width: 100%;
+        font-family: monospace;
+        overflow-y: scroll;
         height: 300px;
-        overflow: auto;
       }
 
       #console-output {
         font-family: monospace;
+        white-space: pre-wrap;
+        word-wrap: break-word;
       }
     </style>
   </head>
@@ -56,7 +58,7 @@
       </form>
 
       <div id="console">
-        <pre id="console-output"></pre>
+        <pre id="console-output" class="console-output"></pre>
       </div>
 
       <!-- <div id="progressContainer">
@@ -87,10 +89,20 @@
           console.log(`user ${userId} connected`);
         });
 
-        function handleProgressUpdate(progress) {
+        function handleProgressUpdate(
+          progress,
+          isError = false,
+          isWarning = false,
+          isSuccess = false,
+        ) {
           const consoleOutput = document.getElementById('console-output');
+          const consolecontainer = document.getElementById('console');
           const message = document.createElement('div');
           consoleOutput.appendChild(message);
+
+          if (isError) message.classList.add('text-danger');
+          if (isWarning) message.classList.add('text-warning');
+          if (isSuccess) message.classList.add('text-success');
 
           // Split the progress message into individual letters
           const letters = progress.split('');
@@ -101,27 +113,21 @@
               // Append the next letter
               message.innerText += letters[index];
 
-              // Call the recursive function after a delay of 0.5 seconds (adjust as needed)
+              // Call the recursive function after a delay
               setTimeout(() => {
                 appendLetter(index + 1);
+                consolecontainer.scrollTop = consolecontainer.scrollHeight;
               }, 10);
             }
           }
 
           // Start appending letters from the first index
           appendLetter(0);
-
-          // Scroll to the bottom of the console
-          consoleOutput.scrollTop = consoleOutput.scrollHeight;
         }
 
         socket.on('progress', function (data) {
-          // console.log('data' + data);
-          const { userId, progress } = data;
-          // console.log(userId, progress);
-          // if (updateUserId === userId) {
-          handleProgressUpdate(data);
-          // }
+          const { progress, isError, isWarning, isSuccess } = data;
+          handleProgressUpdate(progress, isError, isWarning, isSuccess);
         });
 
         const storedUrl = localStorage.getItem('wweUrl');

@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import puppeteer from 'puppeteer';
+import * as puppeteer from 'puppeteer';
 import { Cluster } from 'puppeteer-cluster';
+import { SocketGateway } from 'src/socket.getway';
 import { WweJobs } from './wwe-jobs.interface';
 
 @Injectable()
 export class WweService {
+  constructor(private readonly socketGetway: SocketGateway) {}
+
   urls: string[] = [];
   jobs: WweJobs[] = [];
 
@@ -12,8 +15,8 @@ export class WweService {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
   };
 
-  scrapeJobLinks = async (page) => {
-    console.log(`scraping job's link`);
+  scrapeJobLinks = async (userId: string, page: puppeteer.Page) => {
+    this.socketGetway.sendProgressUpdates(userId, `Fetching job links...`);
 
     await this.sleep(3000);
     await page.waitForSelector('.jobs');
@@ -44,8 +47,13 @@ export class WweService {
     console.log(this.urls);
   };
 
-  scrapeJobDetails = async (page, url: string) => {
-    console.log(`scrapping Job Details... `);
+  scrapeJobDetails = async (
+    userId: string,
+    page: puppeteer.Page,
+    url: string,
+  ) => {
+    this.socketGetway.sendProgressUpdates(userId, `Scraping job details...`);
+
     await page.goto(url);
     await page.waitForSelector('.listing-header-container', { timeout: 5000 });
 
@@ -103,14 +111,14 @@ export class WweService {
     };
   };
 
-  runClusters = async (maxConcurrency: number) => {
+  runClusters = async (userId: string, maxConcurrency: number) => {
     console.log(`clusters started to scrape Job Details`);
     const cluster = await Cluster.launch({
       concurrency: Cluster.CONCURRENCY_PAGE,
       maxConcurrency,
       // monitor: true,
       puppeteerOptions: {
-        headless: true,
+        // headless: true,
         // defaultViewport: false,
         userDataDir: './tmp',
         timeout: 0,
@@ -118,16 +126,25 @@ export class WweService {
     });
 
     cluster.on('taskerror', (err, data) => {
+      this.socketGetway.sendProgressUpdates(
+        userId,
+        `Error during scraping details of job: ( ${data} ) you can check it manually`,
+        true,
+      );
       console.log(`err ${data}: ${err.message}`);
     });
 
     await cluster.task(async ({ page, data: url }) => {
-      const jobDetails = await this.scrapeJobDetails(page, url);
+      const jobDetails = await this.scrapeJobDetails(userId, page, url);
       if (this.urls.length > this.jobs.length) {
-        this.jobs.push(jobDetails);
-        console.log(
-          `adding new job!! ... there are ${this.jobs.length} jobs now`,
+        this.socketGetway.sendProgressUpdates(
+          userId,
+          `New job added... ${this.jobs.length + 1} from ${this.urls.length}`,
+          false,
+          false,
+          true,
         );
+        this.jobs.push(jobDetails);
       }
     });
 
@@ -139,7 +156,11 @@ export class WweService {
     await cluster.close();
   };
 
-  runScrapping = async (url: string, maxConcurrency: number) => {
+  runScrapping = async (
+    userId: string,
+    url: string,
+    maxConcurrency: number,
+  ) => {
     try {
       console.log(this.jobs.length);
       if (
@@ -150,30 +171,58 @@ export class WweService {
       }
 
       const browser = await puppeteer.launch({
-        headless: true,
+        // headless: true,
         userDataDir: './tmp',
       });
 
       const page = await browser.newPage();
+      this.socketGetway.sendProgressUpdates(
+        userId,
+        `Browser launched successfully...`,
+      );
       page.setDefaultNavigationTimeout(0);
-      console.log(`launching the browser`);
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 0 });
 
-      await this.scrapeJobLinks(page);
+      await this.scrapeJobLinks(userId, page);
 
       if (this.urls.length === 0) {
         return { status: 'error', error: 'NO JOBS HERE!!!' };
       }
       console.log(this.urls.length);
 
-      if (this.urls.length > 9) {
-        this.urls = this.urls.slice(0, 9);
+      if (this.urls.length > 10) {
+        this.socketGetway.sendProgressUpdates(
+          userId,
+          `there are ${this.urls.length} jobs but we will scraping first 10 only`,
+          false,
+          true,
+        );
+        this.urls = this.urls.slice(0, 10);
+      } else {
+        this.socketGetway.sendProgressUpdates(
+          userId,
+          `there are ${this.urls.length} jobs to scrape`,
+        );
       }
       console.log(this.urls.length);
 
-      await this.runClusters(+maxConcurrency);
+      await this.runClusters(userId, maxConcurrency);
 
       await browser.close();
+
+      if (this.urls.length > this.jobs.length) {
+        this.socketGetway.sendProgressUpdates(
+          userId,
+          `if there are missed jobs try to decrease the maxConcurrency ...`,
+          false,
+          true,
+        );
+      }
+
+      this.socketGetway.sendProgressUpdates(
+        userId,
+        `Finish scrapping and browser closed...`,
+      );
       return { status: 'complete', data: this.jobs };
     } catch (error) {
       console.error('Error occurred during scraping:', error);
