@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import * as puppeteer from 'puppeteer';
+import * as dotenv from 'dotenv';
 import { Cluster } from 'puppeteer-cluster';
 import { SocketGateway } from 'src/socket.getway';
 import { WweJobs } from './wwe-jobs.interface';
-
+dotenv.config();
 @Injectable()
 export class WweService {
   constructor(private readonly socketGetway: SocketGateway) {}
@@ -118,9 +119,19 @@ export class WweService {
       maxConcurrency,
       // monitor: true,
       puppeteerOptions: {
+        args: [
+          '--disable-setuid-sandbox',
+          '--no-sandbox',
+          '--single-process',
+          '--no-zygote',
+        ],
+        executablePath:
+          process.env.NODE_ENV === 'production'
+            ? process.env.PUPPETEER_EXECUTABLE_PATH
+            : puppeteer.executablePath(),
         // headless: true,
         // defaultViewport: false,
-        userDataDir: './tmp',
+        // userDataDir: './tmp',
         timeout: 0,
       },
     });
@@ -171,8 +182,18 @@ export class WweService {
       }
 
       const browser = await puppeteer.launch({
-        // headless: true,
-        userDataDir: './tmp',
+        args: [
+          '--disable-setuid-sandbox',
+          '--no-sandbox',
+          '--single-process',
+          '--no-zygote',
+        ],
+        executablePath:
+          process.env.NODE_ENV === 'production'
+            ? process.env.PUPPETEER_EXECUTABLE_PATH
+            : puppeteer.executablePath(),
+        headless: true,
+        // userDataDir: './tmp',
       });
 
       const page = await browser.newPage();

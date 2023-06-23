@@ -3,9 +3,10 @@ import { CreateWuzzufDto } from './dto/create-wuzzuf.dto';
 import { UpdateWuzzufDto } from './dto/update-wuzzuf.dto';
 import { Cluster } from 'puppeteer-cluster';
 import * as puppeteer from 'puppeteer';
+import * as dotenv from 'dotenv';
 import * as shortid from 'shortid';
 import { SocketGateway } from 'src/socket.getway';
-
+dotenv.config();
 @Injectable()
 export class WuzzufService {
   constructor(private readonly socketGetway: SocketGateway) {}
@@ -136,9 +137,19 @@ export class WuzzufService {
         maxConcurrency,
         // monitor: true,
         puppeteerOptions: {
+          args: [
+            '--disable-setuid-sandbox',
+            '--no-sandbox',
+            '--single-process',
+            '--no-zygote',
+          ],
+          executablePath:
+            process.env.NODE_ENV === 'production'
+              ? process.env.PUPPETEER_EXECUTABLE_PATH
+              : puppeteer.executablePath(),
           headless: true,
           // defaultViewport: false,
-          userDataDir: './tmp',
+          // userDataDir: './tmp',
           timeout: 0,
         },
       });
@@ -191,8 +202,18 @@ export class WuzzufService {
         return { status: 'error', error: 'URL must be from Wuzzuf job search' };
       }
       const browser = await puppeteer.launch({
+        args: [
+          '--disable-setuid-sandbox',
+          '--no-sandbox',
+          '--single-process',
+          '--no-zygote',
+        ],
+        executablePath:
+          process.env.NODE_ENV === 'production'
+            ? process.env.PUPPETEER_EXECUTABLE_PATH
+            : puppeteer.executablePath(),
         headless: true,
-        userDataDir: './tmp',
+        // userDataDir: './tmp',
       });
       const page = await browser.newPage();
       this.socketGetway.sendProgressUpdates(
