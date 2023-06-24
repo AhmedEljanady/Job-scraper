@@ -77,7 +77,7 @@
       }
 
       $(document).ready(function () {
-        const socket = io('http://localhost:3000');
+        const socket = io('https://job-scraper-g012.onrender.com');
         let userId;
 
         socket.on('connected', (data) => {
@@ -142,7 +142,7 @@
           localStorage.setItem('scrapeUrl', url);
           localStorage.setItem('maxConcurrency', maxConcurrency);
 
-          $.post('http://localhost:3000/wuzzuf', {
+          $.post('https://job-scraper-g012.onrender.com/wuzzuf', {
             userId,
             url,
             maxConcurrency,
