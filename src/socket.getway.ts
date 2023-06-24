@@ -8,7 +8,7 @@ here are two problems here:
 2- this.activeUsers save only two of them   SOLVED
 */
 
-@WebSocketGateway()
+@WebSocketGateway({ cors: true })
 export class SocketGateway {
   @WebSocketServer()
   server: Server;
